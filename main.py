@@ -155,10 +155,18 @@ class NumberOCR():
                 code = set()
 
                 for lowerb in lowerb_list:
-                    if results.get(lowerb):
+                    if NumberOCR.is_number(results.get(lowerb)):
                         code.add(results.get(lowerb))
 
-                code = int(list(code)[0]) if list(code) else None
+                if code:
+                    code_list = list(code)
+                    # print(code_list)
+                    for temp in code_list:
+                        if len(temp) == 2:
+                            code = temp
+                        else:
+                            code = None
+
                 # print(code)
                 if code:
                     return NumberOCR.split_number(code)
