@@ -8,9 +8,10 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor,as_completed
 from copy import deepcopy
 from ctypes import c_char_p
+from collections import Counter
 
 INFO = None
-VERSION = 'v1.0'
+VERSION = 'v1.1'
 LOCATION = None
 LOCK = threading.Lock()
 WINDOWS_NAME = None
@@ -64,12 +65,14 @@ logger.addHandler(file_handler)
         if not beta:
             self.__graph_path = resource_path('model/common_old.onnx')
 '''
-OCR = ddddocr.DdddOcr(ocr=True,show_ad=False)
+# 通用模型
+GENERIC_OCR = ddddocr.DdddOcr(ocr=True,beta=True,show_ad=False)
 
+# 针对超级跑跑的特定模型
+SPECIFIC_OCR = ddddocr.DdddOcr(det=False, ocr=False, import_onnx_path=resource_path("model/AutoRunMap_v1.1.onnx"), charsets_path=resource_path("model/AutoRunMap_v1.1_charsets.json"), show_ad=False)
 
 # 进程退出标记
 PROCESS_FLAG = multiprocessing.Value('b', True)
-
 
 class NumberOCR():
 
@@ -77,6 +80,18 @@ class NumberOCR():
         self.ocr = ddddocr.DdddOcr(show_ad=False)
         # 阈值
         self.lowerb = [100,110,120,95]
+
+    # 获取重复次数最多的数字及其出现次数
+    @staticmethod
+    def most_common_number(nums):
+        # 使用 Counter 统计列表中每个数字出现的次数
+        num_counter = Counter(nums)
+
+        # 获取出现次数最多的数字及其出现次数
+        most_common = num_counter.most_common(1)[0]
+
+        # 返回结果
+        return most_common[0], most_common[1]
 
     # 读取图像，解决imread不能读取中文路径的问题
     @staticmethod
@@ -97,7 +112,11 @@ class NumberOCR():
     # 判断是不是数字
     @staticmethod
     def is_number(str):
-        return str.isdigit()
+        try:
+            number = str.isdigit()
+            return number
+        except:
+            return False
 
     # 验证码图片（预处理）
     @staticmethod
@@ -121,7 +140,7 @@ class NumberOCR():
             with open(f'./temp/验证码降噪.jpg', 'rb') as f:
                 image = f.read()
 
-                res = OCR.classification(image)
+                res = GENERIC_OCR.classification(image)
                 # print(res)
                 return lowerb,res
             
@@ -129,13 +148,15 @@ class NumberOCR():
             print(traceback.format_exc())
             logger.error(traceback.format_exc())
     
-    # 启动线程池
+    
     @staticmethod
     def ocr_working():
-
-        lowerb_list = [100,110,120,95]
+        
+        # 使用通用模型
+        lowerb_list = [100,103,106,110]
 
         try:
+            # 启动线程池
             with ThreadPoolExecutor(max_workers=4) as t:
                 work_list = [t.submit(NumberOCR.working,lowerb) for lowerb in lowerb_list]
                     
@@ -152,22 +173,41 @@ class NumberOCR():
                         print(traceback.format_exc())
                         logger.error(traceback.format_exc())
                 
-                code = set()
-
+                code = []
+                # print(results)
                 for lowerb in lowerb_list:
                     if NumberOCR.is_number(results.get(lowerb)):
-                        code.add(results.get(lowerb))
+                        code.append(results.get(lowerb))
+
+                # 使用「针对超级跑跑的识别模型」
+                with open(f'./temp/验证码.jpg', 'rb') as f:
+                    image = f.read()
+                    temp = SPECIFIC_OCR.classification(image)
+                    if NumberOCR.split_number(temp):
+                        # print("特定模型: {}".format(temp))
+                        code.append(temp)
 
                 if code:
-                    code_list = list(code)
-                    # print(code_list)
-                    for temp in code_list:
-                        if len(temp) == 2:
-                            code = temp
+                    print(code)
+                    most_common_num,most_common_count = NumberOCR.most_common_number(code)
+                    # 如果count都是 1 优先选择特定验证码
+                    if most_common_count == 1:
+                        code = code.pop()
+                        if len(code) == 2:
+                            code = code
                         else:
                             code = None
+                    else:
+                        if len(most_common_num) == 2:
+                            code = most_common_num
+                        else:
+                            code = code.pop()
+                            if len(code) == 2:
+                                code = code
+                            else:
+                                code = None
 
-                # print(code)
+                print(f"验证码: {code}")
                 if code:
                     return NumberOCR.split_number(code)
                 else:
