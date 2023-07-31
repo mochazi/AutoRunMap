@@ -982,7 +982,7 @@ class Win(WinGUI):
 
         # 设置窗口大小、居中
         width = 830
-        height = 1250
+        height = 1280
         screenwidth = self.winfo_screenwidth()
         screenheight = self.winfo_screenheight()
         geometry = '%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2)
@@ -1003,7 +1003,7 @@ class Win(WinGUI):
         images_button.pack(pady=30)
 
         # 程序前置条件说明补充
-        tutorial_title_two_label = Label(new_window, text='----------------本程序基于「彩色图像识别」----------------\n\n「跑图素材图片」的分辨率清晰度\n\n取决于「图像识别」的准确率', font=('黑体', 18, 'bold'), anchor='center', justify='center')
+        tutorial_title_two_label = Label(new_window, text='----------------本程序基于「彩色图像识别」----------------\n\n「验证码图片」不要存在「蓝色边框」\n\n「跑图素材图片」的分辨率清晰度\n\n取决于「图像识别」的准确率', font=('黑体', 18, 'bold'), anchor='center', justify='center')
         tutorial_title_two_label.pack(pady=10)
 
         # 验证码状态说明
