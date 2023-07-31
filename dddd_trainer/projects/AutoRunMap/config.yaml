@@ -6,7 +6,7 @@ Model:
     Word: false
 System:
     Allow_Ext: [jpg, jpeg, png, bmp]
-    GPU: false
+    GPU: true
     GPU_ID: 0
     Path: ./images/
     Project: AutoRunMap
