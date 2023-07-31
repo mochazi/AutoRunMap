@@ -1065,15 +1065,11 @@ class Win(WinGUI):
                 self.press_process.daemon = True
                 self.press_process.start()
 
-                
                 # 游戏控制输入（线程启动）
                 # self.press_thread = threading.Thread(target=self.run_press)
                 # self.press_thread.setDaemon(True) 
                 # self.press_thread.start()
-                
-                
 
-                
         else:
             messagebox.showwarning('警告','没有找到游戏窗口\n\n请使用窗口化而不是无边框')
 
@@ -1346,6 +1342,34 @@ class Win(WinGUI):
                 with self.condition:
                     self.condition.notify()
 
+            except FileNotFoundError:
+                with LOCK:
+                    logger.error(traceback.format_exc())
+                    INFO = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S ') + '跑图图像文件不存在, 正在重新生成文件'
+                    self.tk_text_lb4no8xs.insert(END, INFO + "\r\n", 'red')
+                    self.tk_text_lb4no8xs.see(END)
+
+                    # 确保存在文件夹
+                    if not os.path.exists('./temp/images'):
+                        os.mkdir('./temp/images')
+
+                    # 复制exe的images文件夹出来
+                    if os.path.exists('./temp/images'):
+                        
+                        # 如果目标文件夹已经存在，删除它
+                        shutil.rmtree('./temp/images')
+                        shutil.copytree(resource_path('images'), './temp/images')
+
+                    auto_run_map.get_windows_location()
+                    time.sleep(1)
+                    pyautogui.press('esc')
+                    time.sleep(1)
+                    pyautogui.press('esc')
+
+                    INFO = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S ') + '跑图图像文件生成完毕, 即将开始跑图'
+                    self.tk_text_lb4no8xs.insert(END, INFO + "\r\n", 'green')
+                    self.tk_text_lb4no8xs.see(END)
+
             except:
                 with LOCK:
                     print(f'[检查屏幕验证码线程]错误')
@@ -1384,6 +1408,10 @@ class Win(WinGUI):
                         INFO = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S ') + '跑图图像文件不存在, 正在重新生成文件'
                         self.tk_text_lb4no8xs.insert(END, INFO + "\r\n", 'red')
                         self.tk_text_lb4no8xs.see(END)
+
+                        # 确保存在文件夹
+                        if not os.path.exists('./temp/images'):
+                            os.mkdir('./temp/images')
 
                         # 复制exe的images文件夹出来
                         if os.path.exists('./temp/images'):
