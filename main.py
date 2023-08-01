@@ -11,7 +11,7 @@ from ctypes import c_char_p
 from collections import Counter
 
 INFO = None
-VERSION = 'v1.1'
+VERSION = 'v1.2'
 LOCATION = None
 LOCK = threading.Lock()
 WINDOWS_NAME = None
@@ -149,6 +149,20 @@ class NumberOCR():
             logger.error(traceback.format_exc())
     
     
+    # 仅检查一次，用于「游戏准备」「游戏开始」之前
+    @staticmethod
+    def ocr_working_one():
+
+        try:
+            _,code = NumberOCR.working(100)
+            if len(code) == 2 and NumberOCR.is_number(code):
+                return NumberOCR.split_number(code)
+            else:
+                return None
+        except:
+            print(traceback.format_exc())
+            logger.error(traceback.format_exc())
+
     @staticmethod
     def ocr_working():
         
@@ -275,9 +289,8 @@ class AutoRunMap():
     def get_windows_location(self):
 
         try:
-            time.sleep(0.2)
             app = pywinauto.Application().connect(title_re=WINDOWS_NAME)
-            
+
             # 获取主窗口
             main_window = app.window(title=WINDOWS_NAME)
 
@@ -561,8 +574,9 @@ class AutoRunMap():
         :return: None
         """
         self.get_windows_location()
-        pyautogui.click(var_avg[0], var_avg[1], button='left')
-        time.sleep(0.2)
+        if var_avg:
+            pyautogui.click(var_avg[0], var_avg[1], button='left')
+            time.sleep(0.1)
 
 
     # 点击验证码（简单匹配）
@@ -586,7 +600,6 @@ class AutoRunMap():
 
             self.auto_click(avg)
             pyautogui.moveTo(avg[0]+300, avg[1])
-
 
         # 展示图片
         if show:
@@ -1048,7 +1061,8 @@ class Win(WinGUI):
             if self.__tk_entry_up_key_constraint():
 
                 # 条件变量
-                self.condition = threading.Condition()
+                self.main_condition = threading.Condition()
+                self.click_verification_code_condition = threading.Condition()
 
                 # 主线程（检测是否游戏准备、开始）
                 self.main_thread = threading.Thread(target=self.print_info)
@@ -1091,8 +1105,35 @@ class Win(WinGUI):
 
 
         try:
-            pyautogui.press('esc')
             auto_run_map = AutoRunMap()
+
+            # 正在检查「游戏准备」「游戏开始」再检查一次验证码
+            # 裁剪验证码
+            try:
+                _,status = auto_run_map.cropped_verification_code_images()
+
+                if status:
+                    
+                    # 识别验证码
+                    # print("识别验证码开始" + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S '))
+                    code_list = NumberOCR.ocr_working_one()
+                    # print("识别验证码结束" + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S '))
+                    
+                    if code_list:
+
+                        INFO = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S ') + '「游戏准备」「游戏开始」之前存在验证码，正在退出'
+                        self.tk_text_lb4no8xs.insert(END, INFO + "\r\n", 'green')
+                        self.tk_text_lb4no8xs.see(END)
+                        return
+            except:
+                with LOCK:
+                    print(traceback.format_exc())
+                    logger.error(traceback.format_exc())
+
+
+            # 开始检查「游戏准备」「游戏开始」
+            pyautogui.press('esc')
+
             work_list = [(resource_path(f'images/core/reday.jpg',debug=True), 'F9'), (resource_path(f'images/core/start.jpg',debug=True), 'F10')]
 
             with LOCK:
@@ -1139,6 +1180,10 @@ class Win(WinGUI):
                 self.tk_text_lb4no8xs.insert(END, INFO + "\r\n", 'red')
                 self.tk_text_lb4no8xs.see(END)
                 # self.stop()
+        
+        finally:
+            with self.click_verification_code_condition:
+                self.click_verification_code_condition.notify()
 
     # 高精度sleep提高优先级，防止time.sleep调度了其他线程
     def high_precision_sleep(self,seconds):
@@ -1187,6 +1232,57 @@ class Win(WinGUI):
     #             # self.stop()
 
     @staticmethod
+    def run_loop_up(PROCESS_WINDOWS_NAME,up_key):
+
+        if up_key.value not in pyautogui.KEYBOARD_KEYS:
+            error = f"向前键错误\nup_key: {up_key.value}\n子进程退出"
+            # print(f'向前键错误')
+            # print(f'up_key: {up_key.value}')
+            # print(f'单独向前键输入进程退出')
+            logger.error(error)
+            sys.exit()
+
+
+        def get_windows_location():
+
+            try:
+                time.sleep(0.2)
+                app = pywinauto.Application().connect(title_re=PROCESS_WINDOWS_NAME.value)
+                
+                # 获取主窗口
+                main_window = app.window(title=PROCESS_WINDOWS_NAME.value)
+
+                # 将窗口置顶
+                main_window.set_focus()
+                main_window.topmost = True
+
+                window = app.top_window()
+                left, right, top, down  = window.rectangle().left, window.rectangle().right, window.rectangle().top, window.rectangle().bottom
+                pyautogui.click(left+50, top+20)
+                # print(f"The window position is ({left}, {right}, {top}, {down})")
+                return left, right, top, down
+            except pywinauto.findwindows.ElementNotFoundError:
+                print(traceback.format_exc())
+                # INFO = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S ') + '没有匹配目标, 请确保游戏窗口没有脱离显示器屏幕'
+                # logger.error(traceback.format_exc())
+            except TypeError:
+                print(traceback.format_exc())
+
+        try:
+            print("[单独向前键输入进程]启动")
+            get_windows_location()
+            pydirectinput.keyDown(up_key.value)
+            print(f'[单独向前键输入进程]已退出')
+
+        except:
+            print(f'[单独向前键输入进程]错误')
+            print(f'[单独向前键输入进程]已退出')
+            print(traceback.format_exc())
+            logger.error(f"[单独向前键输入进程]错误\n[单独向前键输入进程]已退出\n{traceback.format_exc()}")
+            sys.exit()
+
+
+    @staticmethod
     def run_press(PROCESS_WINDOWS_NAME,PROCESS_FLAG,sprint_time_key,extra_sprint_time_key,up_key, jump_key):
         
         if up_key.value not in pyautogui.KEYBOARD_KEYS or jump_key.value not in pyautogui.KEYBOARD_KEYS:
@@ -1228,7 +1324,7 @@ class Win(WinGUI):
 
                 window = app.top_window()
                 left, right, top, down  = window.rectangle().left, window.rectangle().right, window.rectangle().top, window.rectangle().bottom
-                pyautogui.moveTo(left+300, top+300)
+                pyautogui.moveTo(left+50, top+20)
                 # print(f"The window position is ({left}, {right}, {top}, {down})")
                 return left, right, top, down
             except pywinauto.findwindows.ElementNotFoundError:
@@ -1272,8 +1368,8 @@ class Win(WinGUI):
 
             if not PROCESS_FLAG.value:
                 print(f'[游戏控制输入进程]已退出')
-                pydirectinput.keyUp(up_key.value)
                 get_windows_location()
+                pydirectinput.keyUp(up_key.value)
 
         except:
             print(f'[游戏控制输入进程]错误')
@@ -1286,12 +1382,13 @@ class Win(WinGUI):
     # 检测是否存在验证码
     def run_click_verification_code_images(self):
 
+        global PROCESS_WINDOWS_NAME
+
         print(f'[检查屏幕验证码线程]启动')
         while self.thread_flag:
 
             try:
-                time.sleep(1)
-                
+
                 with LOCK:
                     # print("正在检查屏幕验证码")
                     INFO = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S ') + '正在检查屏幕验证码'
@@ -1299,8 +1396,10 @@ class Win(WinGUI):
                     self.tk_text_lb4no8xs.see(END)
 
                 auto_run_map = AutoRunMap()
-                auto_run_map.get_windows_location()
 
+                self.loop_up_process = multiprocessing.Process(target=Win.run_loop_up, args=(PROCESS_WINDOWS_NAME,UP_KEY))
+                self.loop_up_process.daemon = True
+                self.loop_up_process.start()
                 
                 # 裁剪验证码
                 _,status = auto_run_map.cropped_verification_code_images()
@@ -1339,8 +1438,11 @@ class Win(WinGUI):
                 pyautogui.press('esc')
 
                 # 唤醒主线程
-                with self.condition:
-                    self.condition.notify()
+                with self.main_condition:
+                    self.main_condition.notify()
+
+                with self.click_verification_code_condition:
+                    self.click_verification_code_condition.wait()
 
             except FileNotFoundError:
                 with LOCK:
@@ -1391,12 +1493,12 @@ class Win(WinGUI):
         auto_run_map = AutoRunMap()
 
         print(f'[检测是否「游戏准备」「开始」线程]启动')
-        with self.condition:
+        with self.main_condition:
 
             while self.thread_flag:
                 
                 try:
-                    self.condition.wait()
+                    self.main_condition.wait()
                     self.run_check_reday_or_start()
 
                     # INFO = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + INFO
