@@ -64,6 +64,8 @@ logger.addHandler(file_handler)
     if ocr:
         if not beta:
             self.__graph_path = resource_path('model/common_old.onnx')
+        else:
+            self.__graph_path = resource_path('model/common.onnx')
 '''
 # 通用模型
 GENERIC_OCR = ddddocr.DdddOcr(ocr=True,beta=True,show_ad=False)
