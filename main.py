@@ -11,7 +11,7 @@ from ctypes import c_char_p
 from collections import Counter
 
 INFO = None
-VERSION = 'v1.2'
+VERSION = 'v1.3'
 LOCATION = None
 LOCK = threading.Lock()
 WINDOWS_NAME = None
@@ -35,8 +35,8 @@ def resource_path(relative_path, debug=False):
 # 检查游戏窗口是否存在
 def check_window_exist(window_title):
     for window in pygetwindow.getAllTitles():
-        if window.lower() == window_title.lower():
-            return True
+        if window_title.lower() in window.lower():
+            return window
     return False
 
 # 确保存在文件夹
@@ -288,26 +288,31 @@ class AutoRunMap():
 
     def get_windows_location(self):
 
-        try:
-            app = pywinauto.Application().connect(title_re=WINDOWS_NAME)
+        desktop = pywinauto.Desktop()
+        windows = desktop.windows()
 
-            # 获取主窗口
-            main_window = app.window(title=WINDOWS_NAME)
+        for window in windows:
 
-            # 将窗口置顶
-            main_window.set_focus()
-            main_window.topmost = True
+            if WINDOWS_NAME in window.window_text():
+                
+                try:
+                    app = pywinauto.Application().connect(handle=window.handle)
+                                
+                    # 获取主窗口
+                    main_window = app.window(title=WINDOWS_NAME)
 
-            window = app.top_window()
-            left, right, top, down  = window.rectangle().left, window.rectangle().right, window.rectangle().top, window.rectangle().bottom
-            # print(f"The window position is ({left}, {right}, {top}, {down})")
-            return left, right, top, down
-        except pywinauto.findwindows.ElementNotFoundError:
-            print(traceback.format_exc())
-            # INFO = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S ') + '没有匹配目标, 请确保游戏窗口没有脱离显示器屏幕'
-            # logger.error(traceback.format_exc())
-        except TypeError:
-            print(traceback.format_exc())
+                    # 将窗口置顶
+                    main_window.set_focus()
+
+                    main_window.topmost = True
+
+                    window = app.top_window()
+                    left, right, top, down  = window.rectangle().left, window.rectangle().right, window.rectangle().top, window.rectangle().bottom
+                    # print(f"The window position is ({left}, {right}, {top}, {down})")
+                    return left, right, top, down
+                
+                except:
+                    print(traceback.format_exc())
 
 
     def get_keypoint_bounds(self,kp):
@@ -1245,28 +1250,32 @@ class Win(WinGUI):
 
         def get_windows_location():
 
-            try:
-                time.sleep(0.2)
-                app = pywinauto.Application().connect(title_re=PROCESS_WINDOWS_NAME.value)
-                
-                # 获取主窗口
-                main_window = app.window(title=PROCESS_WINDOWS_NAME.value)
+            desktop = pywinauto.Desktop()
+            windows = desktop.windows()
 
-                # 将窗口置顶
-                main_window.set_focus()
-                main_window.topmost = True
+            for window in windows:
 
-                window = app.top_window()
-                left, right, top, down  = window.rectangle().left, window.rectangle().right, window.rectangle().top, window.rectangle().bottom
-                pyautogui.click(left+50, top+20)
-                # print(f"The window position is ({left}, {right}, {top}, {down})")
-                return left, right, top, down
-            except pywinauto.findwindows.ElementNotFoundError:
-                print(traceback.format_exc())
-                # INFO = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S ') + '没有匹配目标, 请确保游戏窗口没有脱离显示器屏幕'
-                # logger.error(traceback.format_exc())
-            except TypeError:
-                print(traceback.format_exc())
+                if PROCESS_WINDOWS_NAME.value in window.window_text():
+                    
+                    try:
+                        time.sleep(0.2)
+                        app = pywinauto.Application().connect(handle=window.handle)
+                                    
+                        # 获取主窗口
+                        main_window = app.window(title=PROCESS_WINDOWS_NAME.value)
+
+                        # 将窗口置顶
+                        main_window.set_focus()
+
+                        main_window.topmost = True
+
+                        window = app.top_window()
+                        left, right, top, down  = window.rectangle().left, window.rectangle().right, window.rectangle().top, window.rectangle().bottom
+                        # print(f"The window position is ({left}, {right}, {top}, {down})")
+                        return left, right, top, down
+                    
+                    except:
+                        print(traceback.format_exc())
 
         try:
             print("[单独向前键输入进程]启动")
@@ -1311,28 +1320,32 @@ class Win(WinGUI):
         
         def get_windows_location():
 
-            try:
-                time.sleep(0.2)
-                app = pywinauto.Application().connect(title_re=PROCESS_WINDOWS_NAME.value)
-                
-                # 获取主窗口
-                main_window = app.window(title=PROCESS_WINDOWS_NAME.value)
+            desktop = pywinauto.Desktop()
+            windows = desktop.windows()
 
-                # 将窗口置顶
-                main_window.set_focus()
-                main_window.topmost = True
+            for window in windows:
 
-                window = app.top_window()
-                left, right, top, down  = window.rectangle().left, window.rectangle().right, window.rectangle().top, window.rectangle().bottom
-                pyautogui.moveTo(left+50, top+20)
-                # print(f"The window position is ({left}, {right}, {top}, {down})")
-                return left, right, top, down
-            except pywinauto.findwindows.ElementNotFoundError:
-                print(traceback.format_exc())
-                # INFO = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S ') + '没有匹配目标, 请确保游戏窗口没有脱离显示器屏幕'
-                # logger.error(traceback.format_exc())
-            except TypeError:
-                print(traceback.format_exc())
+                if PROCESS_WINDOWS_NAME.value in window.window_text():
+                    
+                    try:
+                        time.sleep(0.2)
+                        app = pywinauto.Application().connect(handle=window.handle)
+                                    
+                        # 获取主窗口
+                        main_window = app.window(title=PROCESS_WINDOWS_NAME.value)
+
+                        # 将窗口置顶
+                        main_window.set_focus()
+
+                        main_window.topmost = True
+
+                        window = app.top_window()
+                        left, right, top, down  = window.rectangle().left, window.rectangle().right, window.rectangle().top, window.rectangle().bottom
+                        # print(f"The window position is ({left}, {right}, {top}, {down})")
+                        return left, right, top, down
+                    
+                    except:
+                        print(traceback.format_exc())
 
         try:
 
@@ -1562,10 +1575,8 @@ if __name__ == "__main__":
     SPRINT_TIME_KEY = PROCESS_MANAGER.Value("f", 0.9)
     EXTRA_SPRINT_TIME_KEY = PROCESS_MANAGER.Value("f", 0.0)
      
-    # 检查游戏窗口是否存在（可能存在的几个名字）
-    for name in ["Tales Runner", "Tales Runner ver."]:
-        if check_window_exist(name):
-            WINDOWS_NAME = name
+    # 检查游戏是否存在
+    WINDOWS_NAME = check_window_exist("Tales Runner")
 
     PROCESS_WINDOWS_NAME = PROCESS_MANAGER.Value(c_char_p, "Tales Runner")
     if WINDOWS_NAME:
